@@ -45,9 +45,9 @@ import TarefaForm from "@/components/TarefaForm";
 import { Trash2, UserPlus, ListPlus, Users } from "lucide-react";
 
 interface GrupoPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 const formatStatus = (status: string): string => {
@@ -64,7 +64,7 @@ const formatStatus = (status: string): string => {
 };
 
 export default function GrupoPage({ params }: GrupoPageProps) {
-  const grupoId = Number(params.id);
+  const [grupoId, setGrupoId] = useState<number | null>(null);
 
   // Estados para tarefas
   const [tarefas, setTarefas] = useState<TarefaResponseDTO[]>([]);
@@ -83,7 +83,7 @@ export default function GrupoPage({ params }: GrupoPageProps) {
 
   // Novo usuário para o Dialog
   const [emailNovoUsuario, setEmailNovoUsuario] = useState("");
-  const [funcaoNovoUsuario, setFuncaoNovoUsuario] = useState("USER"); // Default role set
+  const [funcaoNovoUsuario, setFuncaoNovoUsuario] = useState("USER");
 
   const [loadingAdicionarUsuario, setLoadingAdicionarUsuario] = useState(false);
 
@@ -103,8 +103,18 @@ export default function GrupoPage({ params }: GrupoPageProps) {
     status: "PENDENTE",
   });
 
+  // Initialize grupoId from params
+  useEffect(() => {
+    params.then((resolvedParams) => {
+      const id = Number(resolvedParams.id);
+      setGrupoId(id);
+    });
+  }, [params]);
+
   // Buscar tarefas
   async function fetchTarefas() {
+    if (grupoId === null) return;
+
     setLoading(true);
     setErro(null);
     try {
@@ -119,6 +129,8 @@ export default function GrupoPage({ params }: GrupoPageProps) {
 
   // Buscar usuários
   async function fetchUsuarios() {
+    if (grupoId === null) return;
+
     setLoadingUsuario(true);
     setErroUsuario(null);
     try {
@@ -132,7 +144,7 @@ export default function GrupoPage({ params }: GrupoPageProps) {
   }
 
   useEffect(() => {
-    if (!isNaN(grupoId)) {
+    if (grupoId !== null && !isNaN(grupoId)) {
       fetchTarefas();
       fetchUsuarios();
     }
@@ -140,6 +152,8 @@ export default function GrupoPage({ params }: GrupoPageProps) {
 
   // Adicionar usuário ao grupo
   async function handleAdicionarUsuario() {
+    if (grupoId === null) return;
+
     if (!emailNovoUsuario.trim()) {
       alert("Informe o e-mail do usuário");
       return;
@@ -153,7 +167,7 @@ export default function GrupoPage({ params }: GrupoPageProps) {
         funcao: funcaoNovoUsuario.trim(),
       });
       setEmailNovoUsuario("");
-      setFuncaoNovoUsuario("USER"); // Reset to default
+      setFuncaoNovoUsuario("USER");
       await fetchUsuarios();
       alert("Usuário adicionado com sucesso!");
     } catch (e: any) {
@@ -165,6 +179,8 @@ export default function GrupoPage({ params }: GrupoPageProps) {
 
   // Remover usuário do grupo
   async function handleRemoverUsuario(usuarioId: number, usuarioNome: string) {
+    if (grupoId === null) return;
+
     if (confirm(`Tem certeza que deseja remover ${usuarioNome} deste grupo?`)) {
       setLoadingUsuario(true);
       setErroUsuario(null);
@@ -185,6 +201,8 @@ export default function GrupoPage({ params }: GrupoPageProps) {
     id: number,
     updatedFields: { titulo: string; descricao: string; status: StatusTarefa }
   ) {
+    if (grupoId === null) return;
+
     setLoadingAtualizacao(true);
     try {
       const payload: TarefaRequestDTO = {
@@ -210,7 +228,7 @@ export default function GrupoPage({ params }: GrupoPageProps) {
     if (confirm("Deseja realmente excluir esta tarefa?")) {
       try {
         await deletarTarefa(id);
-        fetchTarefas(); // Re-fetch all tasks to ensure consistency
+        fetchTarefas();
       } catch (err) {
         console.error("Erro ao excluir tarefa", err);
       }
@@ -352,10 +370,17 @@ export default function GrupoPage({ params }: GrupoPageProps) {
     </motion.div>
   );
 
+  // Show loading state while params are being resolved
+  if (grupoId === null) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-100 flex items-center justify-center">
+        <p className="text-lg text-gray-600">Carregando...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-100">
-      {" "}
-      {/* Changed background to a lighter gray */}
       <div className="max-w-7xl mx-auto p-6 lg:p-8 space-y-8">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
@@ -396,8 +421,6 @@ export default function GrupoPage({ params }: GrupoPageProps) {
           >
             <DialogTrigger asChild>
               <Button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white">
-                {" "}
-                {/* Stronger blue */}
                 <ListPlus className="h-5 w-5" /> Criar Nova Tarefa
               </Button>
             </DialogTrigger>
@@ -433,8 +456,6 @@ export default function GrupoPage({ params }: GrupoPageProps) {
                 variant="outline"
                 className="flex items-center gap-2 border-blue-500 text-blue-700 hover:bg-blue-50"
               >
-                {" "}
-                {/* Styled outline button */}
                 <Users className="h-5 w-5" /> Ver Membros
               </Button>
             </SheetTrigger>
@@ -448,8 +469,6 @@ export default function GrupoPage({ params }: GrupoPageProps) {
 
               {/* Adicionar novo membro - now within the Sheet */}
               <div className="p-4 border border-dashed border-blue-300 rounded-lg bg-blue-50 mb-6">
-                {" "}
-                {/* Blue dashed border and background */}
                 <h3 className="text-md font-semibold mb-3 flex items-center gap-2 text-blue-800">
                   <UserPlus className="h-4 w-4" /> Adicionar Novo Membro
                 </h3>
@@ -559,8 +578,6 @@ export default function GrupoPage({ params }: GrupoPageProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Pending Column */}
             <div className="bg-white p-5 rounded-xl shadow-lg border border-gray-200 flex flex-col min-h-[300px]">
-              {" "}
-              {/* Changed border to a subtle gray */}
               <h2 className="text-2xl font-bold mb-5 text-center text-gray-800">
                 Pendente{" "}
                 <span className="text-gray-500 text-lg">
@@ -581,8 +598,6 @@ export default function GrupoPage({ params }: GrupoPageProps) {
 
             {/* In Progress Column */}
             <div className="bg-white p-5 rounded-xl shadow-lg border border-blue-200 flex flex-col min-h-[300px]">
-              {" "}
-              {/* Changed border to a subtle blue */}
               <h2 className="text-2xl font-bold mb-5 text-center text-blue-700">
                 Em Andamento{" "}
                 <span className="text-blue-500 text-lg">
@@ -603,8 +618,6 @@ export default function GrupoPage({ params }: GrupoPageProps) {
 
             {/* Completed Column */}
             <div className="bg-white p-5 rounded-xl shadow-lg border border-green-200 flex flex-col min-h-[300px]">
-              {" "}
-              {/* Changed border to a subtle green */}
               <h2 className="text-2xl font-bold mb-5 text-center text-green-700">
                 Concluída{" "}
                 <span className="text-green-500 text-lg">
